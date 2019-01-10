@@ -1,0 +1,15 @@
+*.msi
+*.war
+*.sha256
+*.log
+target
+generated
+*.box
+.vagrant
+.iml
+.idea/
+*.orig
+/packages/
+/obj/
+/tmp/
+/bin/

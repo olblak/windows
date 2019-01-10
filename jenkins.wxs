@@ -1,0 +1,186 @@
+<?xml version="1.0"?>
+
+<!--
+  This file gets processed twice. Once by shell on the release machine, then
+  once more by WiX toolkit on Windows build box.
+  
+  WiX variables are supposed to look like <DOLLAR>(var.VARNAME), which means
+  it has to be written like <BACKSLASH><DOLLAR>(var.VARNAME) to survive the first processing
+-->
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'
+     xmlns:fire="http://schemas.microsoft.com/wix/FirewallExtension"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product Name='$(var.ProductName) $(var.ProductVersion)' Id='*' UpgradeCode='$(var.ProductCode)'
+    Language='1033' Codepage='1252' Version='$(var.EncodedVersion)' Manufacturer='$(var.ProductVendor)'>
+
+    <Package Id='*' Platform="x64" Keywords='Installer' Description="$(var.ProductName)"
+      Comments='$(var.ProductSummary)' InstallScope="perMachine"
+      InstallerVersion='200' Compressed='yes' SummaryCodepage='1252' />
+      <Media Id='1' Cabinet='$(var.ArtifactName).cab' EmbedCab='yes'/>
+      
+      <Icon Id="jenkins.ico" SourceFile="jenkins.ico" />
+      
+      <Directory Id='TARGETDIR' Name='SourceDir'>
+        <Directory Id='ProgramFiles64Folder' Name='PFiles'>
+          <Directory Id='JENKINSDIR' Name='$(var.ArtifactName)' FileSource=".">
+            <Component Id='Main' Guid='e4a652bf-c210-4a45-95c4-5dc875b4880b' Win64='yes'>
+              <File Name="jenkins.exe" Source='tmp/jenkins.exe' KeyPath='yes' Id="JenkinsExe"/>
+              <fire:FirewallException Id="FwEx" Program="[JAVA_HOME]\bin\java.exe" Port="[PORTNUMBER]" Name="Jenkins" Scope="any" IgnoreFailure="yes" />
+              <File Id="JenkinsXml" Name="jenkins.xml" Source='tmp/jenkins.xml' DiskId='1' />
+              <File Name="jenkins.exe.config" Source='jenkins.exe.config' DiskId='1' />
+              <File Name="$(var.ArtifactName).war" Source='$(var.WAR)' DiskId='1' />
+              <util:XmlFile Id='JenkinsXmlJenkinsData' Action='setValue' ElementPath='//service/env/@value' File='[#JenkinsXml]' Value='[JENKINS_ROOT].jenkins' Sequence="1"/>
+              <util:XmlFile Id='JenkinsXmlExecutable' Action='setValue' ElementPath='//service/executable' File='[#JenkinsXml]' Value='[JAVA_HOME]\bin\java.exe' Sequence="1"/>
+              <util:XmlFile Id='JenkinsXmlArguments' Action='setValue' ElementPath='//service/arguments' File='[#JenkinsXml]' Value='-Xrs -Xmx256m -Dhudson.lifecycle=hudson.lifecycle.WindowsServiceLifecycle -jar &quot;[JENKINSDIR]jenkins.war&quot; --httpPort=[PORTNUMBER] --webroot=&quot;[JENKINS_ROOT]war&quot;' Sequence="1"/>
+                <util:XmlFile Id='JenkinsXmlExtensionsPidfile' Action='setValue' ElementPath='//service/extensions/extension/pidfile' File='[#JenkinsXml]' Value='[JENKINS_ROOT]jenkins.pid' Sequence='1'/>
+              <ServiceInstall Id="$(var.ArtifactName)Service"
+                    Name="$(var.ArtifactName)"
+                    DisplayName="$(var.ProductName)"
+                    Type="ownProcess"
+                    Start="auto"
+                    ErrorControl="normal"
+                    Description="$(var.ProductSummary)"
+                    Account="[SERVICE_USERNAME]"
+                    Password="[SERVICE_PASSWORD]" />
+                <ServiceControl Id="Control$(var.ArtifactName)Service" Name="$(var.ArtifactName)" Start="install" Stop="both" Wait="yes" Remove="uninstall"/>
+              </Component>
+            </Directory>
+        </Directory>
+      </Directory>
+    
+    <Upgrade Id="$(var.ProductCode)">
+      <UpgradeVersion Minimum="0.0.0" Maximum="$(var.EncodedVersion)" Property="PREVIOUSVERSIONINSTALLED" />
+    </Upgrade>
+    
+    <!-- Find the Java installation -->
+    <Property Id="JAVA_HOME">
+      <RegistrySearch Id="JRE_HOME_REGSEARCH" Root="HKLM" Key="SOFTWARE\JavaSoft\Java Runtime Environment\1.8" Name="JavaHome" Type="raw" Win64="yes"/>
+    </Property>
+    
+    <!-- Default Port Number -->
+    <Property Id="PORTNUMBER" Value="8080" />
+    <Property Id="ARPPRODUCTICON" Value="jenkins.ico" />
+    <Property Id="JENKINS_ROOT" Value="%LocalAppData%\Jenkins\" />
+
+    <Condition Message="Jenkins requires Java Runtime Environment 1.8"><![CDATA[Installed OR JAVA_HOME]]></Condition>
+    
+    <CustomAction Id="BackupJenkinsXmlFile" Script="vbscript">
+      <![CDATA[
+        On Error Resume Next
+        Err.Clear
+        jenkinsDirPath = session.Property("JENKINSDIR")
+        Set fsObj = CreateObject("Scripting.FileSystemObject")
+        If fsObj.FolderExists(jenkinsDirPath) Then
+            srcPath = jenkinsDirPath & "jenkins.xml"
+            If fsObj.FileExists(srcPath) Then
+                dstPath = jenkinsDirPath & "jenkins.xml.backup"
+                If fsObj.FileExists(dstPath) Then
+                    suffix = 1
+                    While fsObj.FileExists(dstPath & "_" & suffix)
+                        suffix = suffix + 1
+                    Wend
+                    dstPath = dstPath & "_" & suffix
+                End If
+                fsObj.CopyFile srcPath, dstPath, True
+                Err.Clear
+                On Error Goto 0
+            End If
+        End If
+      ]]>
+    </CustomAction>
+
+    <InstallExecuteSequence>
+      <!--
+        Earlier I suffered a problem where after an upgrade, all the JRE files are removed
+        (if I then repair the installation, it'll work, so it's not the missing definitions in the msi file.)
+
+        I'm still new to MSI/WiX to be able to really understand what's going on, but
+        http://www.mail-archive.com/wix-users@lists.sourceforge.net/msg32537.html seems to explain the problem,
+        (as caused by the interaction between deferred removal), and the take away from this thread
+        as a whole seems to be that for auto-generated wxs files (from heat), it's just not possible
+        to get the file updates done right (WTF?!).
+
+        The InstallInitialize seems to work. My naive hypothesis is that this stops the service and
+        deletes all the files before new ones are added (OTOH, I still get a dialog that some files
+        are in use and I need to reboot, so I could be all wrong, or maybe the installer is showing
+        this dialog incorrectly as a precaution, as alluded in http://www.mail-archive.com/wix-users@lists.sourceforge.net/msg06878.html)
+
+        I remember seeing another e-mail on the wix-users list about <ServiceControl> not actually
+        waiting until the full termination of the service, and if so, this still might not work.
+
+        In any case, noting my experiments so that future changes to this value will be done very carefully.
+      -->
+      <Custom Action="BackupJenkinsXmlFile" After='InstallInitialize' />
+      <RemoveExistingProducts After="BackupJenkinsXmlFile"/>
+    </InstallExecuteSequence>
+
+    <Feature Id='Complete' Level='1'>
+      <ComponentRef Id='Main' />
+    </Feature>
+    
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="jenkins.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+
+    <UI>
+      <UIRef Id="WixUI_Common" />
+      
+      <Property Id="WixUI_Mode" Value="InstallDir" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="ServiceCredDlg"/>
+      <DialogRef Id="ServicePortDlg"/>
+
+      <Publish Dialog="BrowseDlg" Control="OK" Event="DoAction" Value="WixUIValidatePath" Order="3">1</Publish>
+      <Publish Dialog="BrowseDlg" Control="OK" Event="SpawnDialog" Value="InvalidDirDlg" Order="4"><![CDATA[WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg">1</Publish>
+
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SetTargetPath" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="DoAction" Value="WixUIValidatePath" Order="2">NOT WIXUI_DONTVALIDATEPATH</Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="SpawnDialog" Value="InvalidDirDlg" Order="3"><![CDATA[NOT WIXUI_DONTVALIDATEPATH AND WIXUI_INSTALLDIR_VALID<>"1"]]></Publish>
+      <Publish Dialog="InstallDirDlg" Control="Next" Event="NewDialog" Value="ServiceCredDlg" Order="4">WIXUI_DONTVALIDATEPATH OR WIXUI_INSTALLDIR_VALID="1"</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[WIXUI_INSTALLDIR]" Order="1">1</Publish>
+      <Publish Dialog="InstallDirDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
+      
+      <Publish Dialog="ServiceCredDlg" Control="Next" Event="NewDialog" Value="ServicePortDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="ServiceCredDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
+      
+      <Publish Dialog="ServicePortDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="ServicePortDlg" Control="Back" Event="NewDialog" Value="ServiceCredDlg" Order="1">NOT Installed</Publish>
+
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceCredDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
+
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+      <Property Id="ARPNOMODIFY" Value="1" />
+
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">NOT installed</Publish>
+    </UI>
+
+
+    <!-- launch a browser at the end of the installation -->
+    <SetProperty Id="WixShellExecTarget" Before="CostFinalize" Value="http://localhost:[PORTNUMBER]/"/>
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+
+    <Property Id="WIXUI_INSTALLDIR" Value="JENKINSDIR" />
+  </Product>
+</Wix>
+
