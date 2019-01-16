@@ -18,7 +18,7 @@ New-Item -ItemType Directory -Path tmp -Force -Confirm:$false | Out-Null
 
 $currDir = Split-Path -parent $MyInvocation.MyCommand.Definition
 
-Write-Host "Retrieving Jenkins WAR file"
+Write-Host "Retrieving Jenkins WAR file $jenkinsVersion"
 Get-Jenkins $jenkinsVersion (Join-Path $currDir 'tmp')
 
 $env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($msbuildPath))
