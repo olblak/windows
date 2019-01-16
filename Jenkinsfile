@@ -57,7 +57,7 @@ copy bin\\jenkins*.${env.JENKINS_VERSION}.nupkg ..\\"""
 //     }
     
     stage('Archive Artifacts') {
-      agent { any }
+      agent any
       steps {
         unstash name: 'MSI'
         unstash name: 'Chocolatey'
