@@ -14,25 +14,30 @@ pipeline {
       //agent { label 'windows && packaging' }
       agent { label 'windows' }
       
-      tools { msbuild 'MSBuild' }
+
 
       steps {
+        script {
+          def msbuild = tool 'MSBuild'
+        }
+          
+        
         bat """
 cd msi
-powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} ${msbuild}
+powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} \"${msbuild}\"
 copy bin/Release/jenkins-${env.JENKINS_VERSION}.msi ../"""
         stash name: 'Installer', includes: "jenkins-${env.JENKINS_VERSION}.msi"
       }
     }
     
-    stage('Chocolatey') {
-      agent { label 'windows'}
-      steps {
-        bat """
-cd chocolatey
-powershell -f mkrelease.ps1"""
-      }
-    }
+//     stage('Chocolatey') {
+//       agent { label 'windows'}
+//       steps {
+//         bat """
+// cd chocolatey
+// powershell -f mkrelease.ps1"""
+//       }
+//     }
 
 //     stage('Sign') {
 //       agent { label 'windows && packaging' }
