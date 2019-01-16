@@ -55,6 +55,6 @@ powershell -f mkrelease.ps1"""
     //     unstash name: 'Installer'
         
     //   }
-    }
+    //}
   }
 }
