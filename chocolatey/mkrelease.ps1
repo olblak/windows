@@ -50,7 +50,7 @@ $verificationFile = $verificationFile -replace "%CHECKSUM%", $shaHash
 $verificationFile = $verificationFile -replace "%VERSION%", $jenkinsVersion
 Set-Content -Path $verificationOutputFile -Value $verificationFile -Encoding Ascii
 
-if(-not (Get-Command choco)) {
+if($null -eq (Get-Command choco.exe)) {
     Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
 }
 
