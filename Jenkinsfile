@@ -19,13 +19,11 @@ pipeline {
       steps {
         script {
           def msbuild = tool 'MSBuild'
-        }
-          
-        
-        bat """
+          bat """
 cd msi
 powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} \"${msbuild}\"
 copy bin/Release/jenkins-${env.JENKINS_VERSION}.msi ../"""
+        }
         stash name: 'Installer', includes: "jenkins-${env.JENKINS_VERSION}.msi"
       }
     }
