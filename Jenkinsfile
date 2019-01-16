@@ -14,12 +14,12 @@ pipeline {
       //agent { label 'windows && packaging' }
       agent { label 'windows' }
       
-      tools { msbuild 'default' }
+      tools { msbuild 'MSBuild' }
 
       steps {
         bat """
 cd msi
-powershell -f mkrelease.ps1
+powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} ${msbuild}
 copy bin/Release/jenkins-${env.JENKINS_VERSION}.msi ../"""
         stash name: 'Installer', includes: "jenkins-${env.JENKINS_VERSION}.msi"
       }
