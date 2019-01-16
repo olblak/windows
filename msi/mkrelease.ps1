@@ -24,7 +24,7 @@ $env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($m
 
 # get the components we need from the war file
 Add-Type -Assembly System.IO.Compression.FileSystem
-$zip = [IO.Compression.ZipFile]::OpenRead([System.IO.Path]::Combine($currDir, 'jenkins.war'))
+$zip = [IO.Compression.ZipFile]::OpenRead([System.IO.Path]::Combine($currDir, 'tmp', 'jenkins.war'))
 $zip.Entries | where {$_.Name -like "jenkins-core-${jenkinsVersion}.jar"} | foreach {[System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, [System.IO.Path]::Combine($currDir, "tmp", "core.jar"), $true)}
 $zip.Dispose()
 
