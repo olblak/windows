@@ -23,7 +23,7 @@ powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} \"${msbuild}\"
 copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
           }
         }
-        stash name: 'Installer', includes: "jenkins-${env.JENKINS_VERSION}.msi"
+        stash name: 'MSI', includes: "jenkins-${env.JENKINS_VERSION}.msi"
       }
     }
     
@@ -34,10 +34,10 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
           dir('chocolatey') {
             bat """
 powershell -f mkrelease.ps1 ${env.JENKINS_VERSION}
-copy bin\\jenkins-*.${env.JENKINS_VERSION}.nupkg ..\\"""
+copy bin\\jenkins*.${env.JENKINS_VERSION}.nupkg ..\\"""
           }
         }
-        stash name: 'Chocolatey', includes: "jenkins-*.${env.JENKINS_VERSION}.nupkg"
+        stash name: 'Chocolatey', includes: "jenkins*.${env.JENKINS_VERSION}.nupkg"
       }
     }
 
@@ -56,12 +56,14 @@ copy bin\\jenkins-*.${env.JENKINS_VERSION}.nupkg ..\\"""
 //       }
 //     }
     
-    // stage('Archive Artifacts') {
-    //   agent { any }
-    //   steps {
-    //     unstash name: 'Installer'
+    stage('Archive Artifacts') {
+      agent { any }
+      steps {
+        unstash name: 'MSI'
+        unstash name: 'Chocolatey'
         
-    //   }
-    //}
+        archiveArtifacts artifacts: "jenkins-${env.JENKINS_VERSION}.msi, jenkins*.${env.JENKINS_VERSION}.nupkg"
+      }
+    }
   }
 }

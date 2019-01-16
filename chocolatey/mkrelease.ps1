@@ -24,7 +24,7 @@ if (Test-Path $verificationOutputFile) {
 $suffix = @("", "-stable")[$isLts]
 $changelog = "changelog${suffix}"
 $zipLoc = "windows${suffix}"
-$releaseType = @("", "LTS")[$isLts]
+$releaseType = @("Weekly", "LTS")[$isLts]
 
 if($version -eq "") {
     Write-Error "Missing version parameter!"
@@ -55,4 +55,4 @@ if(-not (Get-Command choco)) {
 }
 
 mkdir -Confirm:$false bin | Out-Null
-& choco pack --version="$version" changelog="$changelog" suffix="$suffix" releaseType="$releaseType" --out="bin"
+& choco pack --version="$version" id="jenkins${suffix}" changelog="$changelog" releaseType="$releaseType" --out="bin"
