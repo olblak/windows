@@ -11,34 +11,43 @@ pipeline {
     
   stages {
     stage('MSI') {
-      agent { label 'windows && packaging' }
+      //agent { label 'windows && packaging' }
+      agent { label 'windows' }
       
       tools { msbuild 'default' }
 
       steps {
         bat """
 cd msi
-powershell -f build.ps1
-copy bin/Release/jenkins-${env.JENKINS_VERSION}.msi ../
-            """
+powershell -f mkrelease.ps1
+copy bin/Release/jenkins-${env.JENKINS_VERSION}.msi ../"""
         stash name: 'Installer', includes: "jenkins-${env.JENKINS_VERSION}.msi"
       }
     }
-
-    stage('Sign') {
-      agent { label 'windows && packaging' }
-      when {
-        expression isTrusted()
-      }
-
+    
+    stage('Chocolatey') {
+      agent { label 'windows'}
       steps {
-        unstash name: 'Installer'
-        bat """openssl pkcs12 -export -out ${SIGN_KEYSTORE} -in ${SIGN_CERTIFICATE} -password pass:${SIGN_STOREPASS} -name ${SIGN_ALIAS}
-signtool sign /v /f ${SIGN_KEYSTORE} /p ${SIGN_STOREPASS} /t http://timestamp.verisign.com/scripts/timestamp.dll /d "Jenkins-${env.JENKINS_VERSION}" Jenkins-${env.JENKINS_VERSION}.msi"""
-        stash name: 'Installer'
-        // do we want to publish here as well?
+        bat """
+cd chocolatey
+powershell -f mkrelease.ps1"""
       }
     }
+
+//     stage('Sign') {
+//       agent { label 'windows && packaging' }
+//       when {
+//         expression isTrusted()
+//       }
+
+//       steps {
+//         unstash name: 'Installer'
+//         bat """openssl pkcs12 -export -out ${SIGN_KEYSTORE} -in ${SIGN_CERTIFICATE} -password pass:${SIGN_STOREPASS} -name ${SIGN_ALIAS}
+// signtool sign /v /f ${SIGN_KEYSTORE} /p ${SIGN_STOREPASS} /t http://timestamp.verisign.com/scripts/timestamp.dll /d "Jenkins-${env.JENKINS_VERSION}" Jenkins-${env.JENKINS_VERSION}.msi"""
+//         stash name: 'Installer'
+//         // do we want to publish here as well?
+//       }
+//     }
     
     stage('Archive Artifacts') {
       agent { any }
