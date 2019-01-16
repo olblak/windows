@@ -9,7 +9,7 @@ generated
 .iml
 .idea/
 *.orig
-/packages/
-/obj/
-/tmp/
-/bin/
+packages/
+obj/
+tmp/
+bin/

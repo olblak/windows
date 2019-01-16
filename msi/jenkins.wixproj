@@ -62,7 +62,7 @@
       <Value>Jenkins</Value>
     </WixConstant>
     <WixConstant Include="WAR" Condition=" '$(WAR)' == '' ">
-      <Value>jenkins.war</Value>
+      <Value>tmp\jenkins.war</Value>
     </WixConstant>
     <WixConstant Include="EncodedVersion" Condition=" '$(EncodedVersion)' != ''">
       <Value>$(EncodedVersion)</Value>
