@@ -36,7 +36,8 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
 powershell -f mkrelease.ps1 ${env.JENKINS_VERSION}
 copy bin\\jenkins-*.${env.JENKINS_VERSION}.nupkg ..\\"""
           }
-          stash name: 'Chocolatey', includes: "jenkins-*.${env.JENKINS_VERSION}.nupkg"
+        }
+        stash name: 'Chocolatey', includes: "jenkins-*.${env.JENKINS_VERSION}.nupkg"
       }
     }
 
