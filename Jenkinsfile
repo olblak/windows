@@ -27,14 +27,18 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
       }
     }
     
-//     stage('Chocolatey') {
-//       agent { label 'windows'}
-//       steps {
-//         bat """
-// cd chocolatey
-// powershell -f mkrelease.ps1"""
-//       }
-//     }
+    stage('Chocolatey') {
+      agent { label 'windows'}
+      steps {
+        script {
+          dir('chocolatey') {
+            bat """
+powershell -f mkrelease.ps1 ${env.JENKINS_VERSION}
+copy bin\\jenkins-*.${env.JENKINS_VERSION}.nupkg ..\\"""
+          }
+          stash name: 'Chocolatey', includes: "jenkins-*.${env.JENKINS_VERSION}.nupkg"
+      }
+    }
 
 //     stage('Sign') {
 //       agent { label 'windows && packaging' }

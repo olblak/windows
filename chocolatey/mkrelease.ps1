@@ -1,11 +1,12 @@
 #!/usr/bin/pwsh
 [CmdletBinding()]
 Param(
-    [Parameter(Position=0)]
-    [String] $releaseType = "weekly",
-    [Parameter(Position=1)]
     [String] $version
 )
+
+$isLts = $version.Split('.').Length -gt 2
+
+Remove-Item -Recurse -Force bin
 
 $currDir = Split-Path -parent $MyInvocation.MyCommand.Definition
 
@@ -19,19 +20,14 @@ if (Test-Path $verificationOutputFile) {
     Remove-Item -Force $verificationOutputFile
 }
 
-$changelog = "changelog"
-$suffix = "-weekly"
-$zipLoc = "windows"
+
+$suffix = @("", "-stable")[$isLts]
+$changelog = "changelog${suffix}"
+$zipLoc = "windows${suffix}"
+$releaseType = @("", "LTS")[$isLts]
 
 if($version -eq "") {
     Write-Error "Missing version parameter!"
-}
-
-if($releaseType -eq "lts") {
-    $changelog = "changelog-stable"
-    $suffix = "-lts"
-    $releaseType = "LTS"
-    $zipLoc = "windows-stable"
 }
 
 $shaUrl = "http://mirrors.jenkins-ci.org/$($zipLoc)/jenkins-$($version).zip.sha256"
@@ -54,4 +50,9 @@ $verificationFile = $verificationFile -replace "%CHECKSUM%", $sha
 $verificationFile = $verificationFile -replace "%VERSION%", $version
 Set-Content -Path $verificationOutputFile -Value $verificationFile -Encoding Ascii
 
-& choco pack --version=$version changelog=$changelog suffix=$suffix releaseType=$releaseType
+if(-not (Get-Command choco)) {
+    Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+}
+
+mkdir -Confirm:$false bin | Out-Null
+& choco pack --version="$version" changelog="$changelog" suffix="$suffix" releaseType="$releaseType" --out="bin"
