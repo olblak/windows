@@ -49,12 +49,12 @@ powershell -f mkrelease.ps1"""
 //       }
 //     }
     
-    stage('Archive Artifacts') {
-      agent { any }
-      steps {
-        unstash name: 'Installer'
+    // stage('Archive Artifacts') {
+    //   agent { any }
+    //   steps {
+    //     unstash name: 'Installer'
         
-      }
+    //   }
     }
   }
 }
