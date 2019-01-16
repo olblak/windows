@@ -18,10 +18,12 @@ New-Item -ItemType Directory -Path tmp -Force -Confirm:$false | Out-Null
 
 $currDir = Split-Path -parent $MyInvocation.MyCommand.Definition
 
+Write-Host "Retrieving Jenkins WAR file"
 Get-Jenkins $jenkinsVersion (Join-Path $currDir 'tmp')
 
 $env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($msbuildPath))
 
+Write-Host "Extracting components"
 # get the components we need from the war file
 Add-Type -Assembly System.IO.Compression.FileSystem
 $zip = [IO.Compression.ZipFile]::OpenRead([System.IO.Path]::Combine($currDir, 'tmp', 'jenkins.war'))
@@ -36,8 +38,10 @@ $zip = [IO.Compression.ZipFile]::OpenRead([System.IO.Path]::Combine($currDir, 't
 $zip.Entries | where {$_.Name -like 'jenkins.xml'} | foreach {[System.IO.Compression.ZipFileExtensions]::ExtractToFile($_, [System.IO.Path]::Combine($currDir, "tmp", "jenkins.xml"), $true)}
 $zip.Dispose()
 
+Write-Host "Restoring packages before build"
 # restore the Wix package
 .\nuget restore -PackagesDirectory packages
 
+Write-Host "Building MSI"
 # build the msi
-msbuild jenkins.wixproj /p:DisplayVersion=$jenkinsVersion /p:Configuration=Release /verbosity:minimal
+msbuild jenkins.wixproj /p:DisplayVersion=$jenkinsVersion /p:Configuration=Release
