@@ -35,66 +35,65 @@
   </UsingTask>
   
   <Target Name="Setup">
+    <CallTarget Targets="SetConstants" />
+    <CallTarget Targets="Build"/>
+  </Target>
+  
+  <Target Name="SetConstants">
     <EncodeVersion DisplayVersion="$(DisplayVersion)">
       <Output PropertyName="EncodedVersion" TaskParameter="EncodedVersion" />
     </EncodeVersion>
-    <Message Text="EncodedVersion = $(EncodedVersion)" />
     
+    <Message Text="EncodedVersion = $(EncodedVersion)" />
     <ItemGroup>
       <WixConstant Include="EncodedVersion">
         <Value>$(EncodedVersion)</Value>
       </WixConstant>
+      <WixConstant Include="ProductCode">
+        <Value>{415933D8-4104-47C3-AEE9-66B31DE07A57}</Value>
+      </WixConstant>
+      <WixConstant Include="ProductVersion">
+        <Value>$(DisplayVersion)</Value>
+      </WixConstant>
+      <WixConstant Include="ProductName" Condition=" '$(ProductName)' == '' ">
+        <Value>Jenkins</Value>
+      </WixConstant>
+      <WixConstant Include="ProductSummary" Condition=" '$(ProductSummary)' == '' ">
+        <Value>Jenkins CI/CD Server</Value>
+      </WixConstant>
+      <WixConstant Include="ProductVendor" Condition=" '$(ProductVendor)' == '' ">
+        <Value>Jenkins Project</Value>
+      </WixConstant>
+      <WixConstant Include="ArtifactName" Condition=" '$(ArtifactName)' == ''">
+        <Value>Jenkins</Value>
+      </WixConstant>
+      <WixConstant Include="WAR" Condition=" '$(WAR)' == '' ">
+        <Value>tmp\jenkins.war</Value>
+      </WixConstant>
     </ItemGroup>
-    <CallTarget Targets="Build"/>
+
+    <CreateProperty Value="@(WixConstant->'%(Identity)=%(Value)')">
+      <Output TaskParameter="Value" PropertyName="CommonWixConstants" />
+    </CreateProperty>
+
+    <CreateProperty Value="Debug;$(CommonWixConstants)" Condition=" '$(Configuration)' == 'Debug' ">
+      <Output TaskParameter="Value" PropertyName="DefineConstants" />
+    </CreateProperty>
+
+    <CreateProperty Value="$(CommonWixConstants)" Condition=" '$(Configuration)' == 'Release' ">
+      <Output TaskParameter="Value" PropertyName="DefineConstants" />
+    </CreateProperty>
   </Target>
-  
-  <ItemGroup>
-    <WixConstant Include="ProductCode">
-      <Value>{415933D8-4104-47C3-AEE9-66B31DE07A57}</Value>
-    </WixConstant>
-    <WixConstant Include="ProductVersion">
-      <Value>$(DisplayVersion)</Value>
-    </WixConstant>
-    <WixConstant Include="ProductName" Condition=" '$(ProductName)' == '' ">
-      <Value>Jenkins</Value>
-    </WixConstant>
-    <WixConstant Include="ProductSummary" Condition=" '$(ProductSummary)' == '' ">
-      <Value>Jenkins CI/CD Server</Value>
-    </WixConstant>
-    <WixConstant Include="ProductVendor" Condition=" '$(ProductVendor)' == '' ">
-      <Value>Jenkins Project</Value>
-    </WixConstant>
-    <WixConstant Include="ArtifactName" Condition=" '$(ArtifactName)' == ''">
-      <Value>Jenkins</Value>
-    </WixConstant>
-    <WixConstant Include="WAR" Condition=" '$(WAR)' == '' ">
-      <Value>tmp\jenkins.war</Value>
-    </WixConstant>
-    <WixConstant Include="EncodedVersion" Condition=" '$(EncodedVersion)' != ''">
-      <Value>$(EncodedVersion)</Value>
-    </WixConstant>
-    <WixConstant Include="EncodedVersion" Condition=" '$(EncodedVersion)' == ''">
-      <Value>$(DisplayVersion)</Value>
-    </WixConstant>
-  </ItemGroup>
 
   <PropertyGroup>
-    <CommonWixConstants>@(WixConstant->'%(Identity)=%(Value)')</CommonWixConstants>
     <OutputPath Condition=" '$(OutputPath)' == '' ">bin\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-  </PropertyGroup>  
-  
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <DefineConstants>Debug;$(CommonWixConstants)</DefineConstants>
   </PropertyGroup>
-  
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DefineConstants>$(CommonWixConstants)</DefineConstants>
-  </PropertyGroup>
-  
+
   <ItemGroup>
     <Compile Include="jenkins.wxs" />
   </ItemGroup>
+  
   <ItemGroup>
     <WixExtension Include="WixUIExtension">
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
@@ -117,5 +116,6 @@
       <Name>WixCommonUIExtension</Name>
     </WixExtension>
   </ItemGroup>
+  
   <Import Project="$(WixTargetsPath)" />
 </Project>

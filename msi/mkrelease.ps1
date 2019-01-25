@@ -21,7 +21,9 @@ $currDir = Split-Path -parent $MyInvocation.MyCommand.Definition
 Write-Host "Retrieving Jenkins WAR file $jenkinsVersion"
 Get-Jenkins $jenkinsVersion (Join-Path $currDir 'tmp')
 
-$env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($msbuildPath))
+if($msbuildPath -ne '') {
+    $env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($msbuildPath))
+}
 
 Write-Host "Extracting components"
 # get the components we need from the war file
