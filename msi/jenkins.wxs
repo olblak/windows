@@ -31,7 +31,7 @@
               <File Name="$(var.ArtifactName).war" Source='$(var.WAR)' DiskId='1' />
               <util:XmlFile Id='JenkinsXmlJenkinsData' Action='setValue' ElementPath='//service/env/@value' File='[#JenkinsXml]' Value='[JENKINS_ROOT].jenkins' Sequence="1"/>
               <util:XmlFile Id='JenkinsXmlExecutable' Action='setValue' ElementPath='//service/executable' File='[#JenkinsXml]' Value='[JAVA_HOME]\bin\java.exe' Sequence="1"/>
-              <util:XmlFile Id='JenkinsXmlArguments' Action='setValue' ElementPath='//service/arguments' File='[#JenkinsXml]' Value='-Xrs -Xmx256m -Dhudson.lifecycle=hudson.lifecycle.WindowsServiceLifecycle -jar &quot;[JENKINSDIR]jenkins.war&quot; --httpPort=[PORTNUMBER] --webroot=&quot;[JENKINS_ROOT]war&quot;' Sequence="1"/>
+              <util:XmlFile Id='JenkinsXmlArguments' Action='setValue' ElementPath='//service/arguments' File='[#JenkinsXml]' Value='-Xrs -Xmx256m -Dhudson.lifecycle=hudson.lifecycle.WindowsServiceLifecycle [JAVA_11_JAVA_ARGS] -jar &quot;[JENKINSDIR]jenkins.war&quot; --httpPort=[PORTNUMBER] --webroot=&quot;[JENKINS_ROOT]war&quot; [JAVA_11_JENKINS_ARGS]' Sequence="1"/>
                 <util:XmlFile Id='JenkinsXmlExtensionsPidfile' Action='setValue' ElementPath='//service/extensions/extension/pidfile' File='[#JenkinsXml]' Value='[JENKINS_ROOT]jenkins.pid' Sequence='1'/>
               <ServiceInstall Id="$(var.ArtifactName)Service"
                     Name="$(var.ArtifactName)"
@@ -52,7 +52,7 @@
       <UpgradeVersion Minimum="0.0.0" Maximum="$(var.EncodedVersion)" Property="PREVIOUSVERSIONINSTALLED" />
     </Upgrade>
     
-    <!-- Find the Java installation -->
+    <!-- Find a Java 8 installation (by default) -->
     <Property Id="JAVA_HOME">
       <RegistrySearch Id="JRE_HOME_REGSEARCH" Root="HKLM" Key="SOFTWARE\JavaSoft\Java Runtime Environment\1.8" Name="JavaHome" Type="raw" Win64="yes"/>
     </Property>
@@ -60,10 +60,10 @@
     <!-- Default Port Number -->
     <Property Id="PORTNUMBER" Value="8080" />
     <Property Id="ARPPRODUCTICON" Value="jenkins.ico" />
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />      <!-- Remove repair -->
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />      <!-- Remove modify -->
     <Property Id="JENKINS_ROOT" Value="%LocalAppData%\Jenkins\" />
 
-    <Condition Message="Jenkins requires Java Runtime Environment 1.8"><![CDATA[Installed OR JAVA_HOME]]></Condition>
-    
     <CustomAction Id="BackupJenkinsXmlFile" Script="vbscript">
       <![CDATA[
         On Error Resume Next
@@ -86,6 +86,27 @@
                 On Error Goto 0
             End If
         End If
+        Set fsObj = Nothing
+      ]]>
+    </CustomAction>
+    
+    <CustomAction Id="ValidateJavaHome" Script="vbscript">
+      <![CDATA[
+      On Error Resume Next
+      Err.Clear
+      javaHome = Session.Property("JAVA_HOME")
+      Session.Property("JAVA_EXE_FOUND") = "0"
+      Session.Property("JAVA_EXE_VERSION") = ""
+      Set fsObj = CreateObject("Scripting.FileSystemObject")
+      If fsObj.FolderExists(javaHome) Then
+        javaExe = javaHome & "\bin\java.exe"
+        If fsObj.FileExists(javaExe) Then
+          Session.Property("JAVA_EXE_FOUND") = "1"
+          javaExeVersion = fsObj.GetFileVersion(javaExe)
+          Session.Property("JAVA_EXE_VERSION") = Left(javaExeVersion, InStr(javaExeVersion, ".") - 1)
+        End If
+      End If
+      Set fsObj = Nothing
       ]]>
     </CustomAction>
 
@@ -126,6 +147,32 @@
       <UIRef Id="WixUI_Common" />
       
       <Property Id="WixUI_Mode" Value="InstallDir" />
+      
+      <Dialog Id="JavaHomeDlg" Width="370" Height="270" Title="[ProductName] Setup">
+          <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+            <Publish Event="DoAction" Value="ValidateJavaHome" Order="1">1</Publish>
+            
+            <!-- Spawn the error dialog if java.exe can't be found. -->
+            <Publish Property="ERROR_TITLE" Value="Invalid JRE Directory" Order="2"><![CDATA[JAVA_EXE_FOUND = "0"]]></Publish>
+            <Publish Property="ERROR_MESSAGE" Value="Failed to find compatible JRE in [JAVA_HOME]" Order="3"><![CDATA[JAVA_EXE_FOUND = "0"]]></Publish>
+            <Publish Event="SpawnDialog" Value="GenericErrorDlg" Order="4"><![CDATA[JAVA_EXE_FOUND = "0"]]></Publish>
+            <Publish Property="JAVA_HOME" Value="[JAVA_HOME]">1</Publish>
+            <Publish Property="JAVA_11_JAVA_ARGS" Value="-p jaxb-api.jar:javax.activation.jar --add-modules java.xml.bind,java.activation -cp jaxb-core.jar:jaxb-impl.jar"><![CDATA[JAVA_EXE_VERSION = "11"]]></Publish>
+            <Publish Property="JAVA_11_JENKINS_ARGS" Value="--enable-future-java"><![CDATA[JAVA_EXE_VERSION = "11"]]></Publish>
+          </Control>
+          <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
+          <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+            <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+          </Control>
+          <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="Select Java Runtime Environment" />
+          <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="[ProductName] Setup" />
+          <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
+          <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+          <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+          <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="If a compatible Java Runtime Environment was found, it will be populated below. Click next to install with the default JRE, or click Change to select a different JRE home directory." />
+          <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="JAVA_HOME" />
+          <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="&amp;Change..." />
+      </Dialog>
 
       <DialogRef Id="BrowseDlg" />
       <DialogRef Id="DiskCostDlg" />
@@ -158,8 +205,14 @@
       <Publish Dialog="ServiceCredDlg" Control="Next" Event="NewDialog" Value="ServicePortDlg" Order="1">NOT Installed</Publish>
       <Publish Dialog="ServiceCredDlg" Control="Back" Event="NewDialog" Value="InstallDirDlg" Order="1">NOT Installed</Publish>
       
-      <Publish Dialog="ServicePortDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="ServicePortDlg" Control="Next" Event="NewDialog" Value="JavaHomeDlg" Order="1">NOT Installed</Publish>
       <Publish Dialog="ServicePortDlg" Control="Back" Event="NewDialog" Value="ServiceCredDlg" Order="1">NOT Installed</Publish>
+      
+      <Publish Dialog="JavaHomeDlg" Control="Next" Event="NewDialog" Value="VerifyReadyDlg" Order="1">NOT Installed</Publish>
+      <Publish Dialog="JavaHomeDlg" Control="Back" Event="NewDialog" Value="ServicePortDlg" Order="1">NOT Installed</Publish>
+      
+      <Publish Dialog="JavaHomeDlg" Control="ChangeFolder" Property="_BrowseProperty" Value="[JAVA_HOME]" Order="1">1</Publish>
+      <Publish Dialog="JavaHomeDlg" Control="ChangeFolder" Event="SpawnDialog" Value="BrowseDlg" Order="2">1</Publish>
 
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="ServiceCredDlg" Order="1">NOT Installed</Publish>
       <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg" Order="2">Installed</Publish>
@@ -169,8 +222,6 @@
       <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
-
-      <Property Id="ARPNOMODIFY" Value="1" />
 
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">NOT installed</Publish>
     </UI>

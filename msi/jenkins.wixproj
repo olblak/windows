@@ -25,7 +25,7 @@
       <![CDATA[ 
       var items = DisplayVersion.Split('.');
       if(items.Length <= 2) {
-        EncodedVersion = DisplayVersion;
+        EncodedVersion = string.Format("{0}.0", DisplayVersion);
       } else {
         EncodedVersion = string.Format("{0}.{1}.{2}", items[0], items[1], (int.Parse(items[2]) * 1000) + (items.Length > 3 ? int.Parse(items[3]) * 10 : 0));
       }
@@ -39,6 +39,12 @@
       <Output PropertyName="EncodedVersion" TaskParameter="EncodedVersion" />
     </EncodeVersion>
     <Message Text="EncodedVersion = $(EncodedVersion)" />
+    
+    <ItemGroup>
+      <WixConstant Include="EncodedVersion">
+        <Value>$(EncodedVersion)</Value>
+      </WixConstant>
+    </ItemGroup>
     <CallTarget Targets="Build"/>
   </Target>
   
