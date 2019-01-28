@@ -60,7 +60,7 @@
         <Value>Jenkins</Value>
       </WixConstant>
       <WixConstant Include="ProductSummary" Condition=" '$(ProductSummary)' == '' ">
-        <Value>Jenkins CI/CD Server</Value>
+        <Value>Jenkins Automation Server</Value>
       </WixConstant>
       <WixConstant Include="ProductVendor" Condition=" '$(ProductVendor)' == '' ">
         <Value>Jenkins Project</Value>
