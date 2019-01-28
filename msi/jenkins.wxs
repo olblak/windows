@@ -29,6 +29,9 @@
               <File Id="JenkinsXml" Name="jenkins.xml" Source='tmp/jenkins.xml' DiskId='1' />
               <File Name="jenkins.exe.config" Source='jenkins.exe.config' DiskId='1' />
               <File Name="$(var.ArtifactName).war" Source='$(var.WAR)' DiskId='1' />
+              
+              
+              <!-- Update the XML file with the values selected during install -->
               <util:XmlFile Id='JenkinsXmlJenkinsData' Action='setValue' ElementPath='//service/env/@value' File='[#JenkinsXml]' Value='[JENKINS_ROOT].jenkins' Sequence="1"/>
               <util:XmlFile Id='JenkinsXmlExecutable' Action='setValue' ElementPath='//service/executable' File='[#JenkinsXml]' Value='[JAVA_HOME]\bin\java.exe' Sequence="1"/>
               <util:XmlFile Id='JenkinsXmlArguments' Action='setValue' ElementPath='//service/arguments' File='[#JenkinsXml]' Value='-Xrs -Xmx256m -Dhudson.lifecycle=hudson.lifecycle.WindowsServiceLifecycle [JAVA_11_JAVA_ARGS] -jar &quot;[JENKINSDIR]jenkins.war&quot; --httpPort=[PORTNUMBER] --webroot=&quot;[JENKINS_ROOT]war&quot; [JAVA_11_JENKINS_ARGS]' Sequence="1"/>
@@ -44,10 +47,19 @@
                     Password="[SERVICE_PASSWORD]" />
                 <ServiceControl Id="Control$(var.ArtifactName)Service" Name="$(var.ArtifactName)" Start="install" Stop="both" Wait="yes" Remove="uninstall"/>
               </Component>
+              
+              <Component Id="Java11Deps" Guid='' Win64='yes'>
+                <Condition><![CDATA[JAVA_EXE_VERSION = "11"]]></Condition>
+                <!-- Java 11 requirements -->
+                <File Name="jaxb-api-2.3.0.jar" Source='tmp/jaxb-api-2.3.0.jar' DiskId='1' />
+                <File Name="jaxb-core-2.3.0.1.jar" Source='tmp/jaxb-core-2.3.0.1.jar' DiskId='1' />
+                <File Name="jaxb-impl-2.3.0.1.jar" Source='tmp/jaxb-impl-2.3.0.1.jar' DiskId='1' />
+                <File Name="javax.activation.jar" Source='tmp/javax.activation-1.2.0.jar' DiskId='1' />
+              </Component>
             </Directory>
         </Directory>
       </Directory>
-    
+
     <Upgrade Id="$(var.ProductCode)">
       <UpgradeVersion Minimum="0.0.0" Maximum="$(var.EncodedVersion)" Property="PREVIOUSVERSIONINSTALLED" />
     </Upgrade>
@@ -137,6 +149,7 @@
 
     <Feature Id='Complete' Level='1'>
       <ComponentRef Id='Main' />
+      <ComponentRef Id='Java11Deps' />
     </Feature>
     
     <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
@@ -148,30 +161,30 @@
       
       <Property Id="WixUI_Mode" Value="InstallDir" />
       
-      <Dialog Id="JavaHomeDlg" Width="370" Height="270" Title="[ProductName] Setup">
+      <Dialog Id="JavaHomeDlg" Width="370" Height="270" Title="!(loc.JavaHomeDlgTitle)">
           <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
             <Publish Event="DoAction" Value="ValidateJavaHome" Order="1">1</Publish>
             
             <!-- Spawn the error dialog if java.exe can't be found. -->
-            <Publish Property="ERROR_TITLE" Value="Invalid JRE Directory" Order="2"><![CDATA[JAVA_EXE_FOUND = "0" OR JAVA_EXE_VERSION = "10" OR JAVA_EXE_VERSION = "9"]]></Publish>
-            <Publish Property="ERROR_MESSAGE" Value="Failed to find compatible JRE in [JAVA_HOME]" Order="3"><![CDATA[JAVA_EXE_FOUND = "0" OR JAVA_EXE_VERSION = "10" OR JAVA_EXE_VERSION = "9"]]></Publish>
+            <Publish Property="ERROR_TITLE" Value="!(loc.JavaHomeDlgErrorTitle)" Order="2"><![CDATA[JAVA_EXE_FOUND = "0" OR JAVA_EXE_VERSION = "10" OR JAVA_EXE_VERSION = "9"]]></Publish>
+            <Publish Property="ERROR_MESSAGE" Value="!(loc.JavaJomeDlgErrorMessage)" Order="3"><![CDATA[JAVA_EXE_FOUND = "0" OR JAVA_EXE_VERSION = "10" OR JAVA_EXE_VERSION = "9"]]></Publish>
             <Publish Event="SpawnDialog" Value="GenericErrorDlg" Order="4"><![CDATA[JAVA_EXE_FOUND = "0" OR JAVA_EXE_VERSION = "10" OR JAVA_EXE_VERSION = "9"]]></Publish>
             <Publish Property="JAVA_HOME" Value="[JAVA_HOME]">1</Publish>
-            <Publish Property="JAVA_11_JAVA_ARGS" Value="-p jaxb-api.jar:javax.activation.jar --add-modules java.xml.bind,java.activation -cp jaxb-core.jar:jaxb-impl.jar"><![CDATA[JAVA_EXE_VERSION = "11"]]></Publish>
+            <Publish Property="JAVA_11_JAVA_ARGS" Value="-p jaxb-api-2.3.0.jar:javax.activation-1.2.0.jar --add-modules java.xml.bind,java.activation -cp jaxb-core-2.3.0.1.jar:jaxb-impl-2.3.0.1.jar"><![CDATA[JAVA_EXE_VERSION = "11"]]></Publish>
             <Publish Property="JAVA_11_JENKINS_ARGS" Value="--enable-future-java"><![CDATA[JAVA_EXE_VERSION = "11"]]></Publish>
           </Control>
           <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" />
           <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
             <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
           </Control>
-          <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="Select Java Runtime Environment (JRE)" />
-          <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="[ProductName] Setup" />
+          <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.JavaHomeDlgDescription)" />
+          <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.JavaHomeDlgTitle)" />
           <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="WixUI_Bmp_Banner" />
           <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
           <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
-          <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="Please select the path of a Java SE 8.0 or 11.0 JRE installed on your system." />
+          <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="!(loc.JavaHomeDlgLabel)" />
           <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="JAVA_HOME" />
-          <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="&amp;Change...">
+          <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="!(loc.JavaHomeDlgChange)">
             <Publish Property="_BrowseProperty" Value="JAVA_HOME" Order="1">1</Publish>
             <Publish Event="SpawnDialog" Value="JavaBrowseDlg" Order="2">1</Publish>
           </Control>
@@ -199,9 +212,9 @@
         <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.BrowseDlgBannerBitmap)" />
         <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
         <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
-        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="Browse to the JRE folder" />
-        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="{\WixUI_Font_Title}Select JRE folder" />
-    </Dialog>
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.JavaBrowseDlgDescription)" />
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes" Text="!(loc.JavaBrowseDlgTitle)" />
+      </Dialog>
 
       <DialogRef Id="BrowseDlg" />
       <DialogRef Id="DiskCostDlg" />

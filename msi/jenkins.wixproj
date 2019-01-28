@@ -13,6 +13,7 @@
     <SetMsiAssemblyNameFileVersion>True</SetMsiAssemblyNameFileVersion>
     <DefineSolutionProperties>false</DefineSolutionProperties>
     <SuppressSpecificWarnings>1076</SuppressSpecificWarnings>
+    <Cultures>en-US</Cultures>
   </PropertyGroup>
   
   <UsingTask TaskName="EncodeVersion" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
@@ -95,6 +96,10 @@
   </ItemGroup>
   
   <ItemGroup>
+    <EmbeddedResource Include="*.wxl" />
+  </ItemGroup>
+  
+  <ItemGroup>
     <WixExtension Include="WixUIExtension">
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
@@ -116,6 +121,5 @@
       <Name>WixCommonUIExtension</Name>
     </WixExtension>
   </ItemGroup>
-  
   <Import Project="$(WixTargetsPath)" />
 </Project>

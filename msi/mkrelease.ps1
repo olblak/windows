@@ -25,6 +25,20 @@ if($msbuildPath -ne '') {
     $env:PATH = [String]::Join(';', $env:PATH, [System.IO.Path]::GetDirectoryName($msbuildPath))
 }
 
+$additionalJars = @(
+    "http://central.maven.org/maven2/javax/xml/bind/jaxb-api/2.3.0/jaxb-api-2.3.0.jar";
+    "http://central.maven.org/maven2/com/sun/xml/bind/jaxb-core/2.3.0.1/jaxb-core-2.3.0.1.jar";
+    "http://central.maven.org/maven2/com/sun/xml/bind/jaxb-impl/2.3.0.1/jaxb-impl-2.3.0.1.jar";
+    "http://central.maven.org/maven2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.jar"
+)
+
+Write-Host "Downloading JARs required for running under Java 11"
+foreach($jar in $additionalJars) {
+    Write-Host "    Downloading $jar"
+    $localJar = [System.IO.Path]::Combine($currDir, 'tmp', [System.IO.Path]::GetFileName("$jar"))
+    Invoke-WebRequest -Uri $jar -OutFile $localJar
+}
+
 Write-Host "Extracting components"
 # get the components we need from the war file
 Add-Type -Assembly System.IO.Compression.FileSystem

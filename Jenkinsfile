@@ -19,12 +19,10 @@ pipeline {
         script {
           def msbuild = tool 'MSBuild'
           dir('msi') {
-            bat """
-powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} \"${msbuild}\"
-copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
+            bat "powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} \"${msbuild}\""
           }
         }
-        stash name: 'MSI', includes: "jenkins-${env.JENKINS_VERSION}.msi"
+        stash name: 'MSI', includes: "bin/Release/**/jenkins-${env.JENKINS_VERSION}.msi"
       }
     }
     
@@ -36,6 +34,7 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
 //        }
 
 //        steps {
+  // TODO: sign each localized version of the installer
 //          unstash name: 'Installer'
 //          bat """openssl pkcs12 -export -out ${SIGN_KEYSTORE} -in ${SIGN_CERTIFICATE} -password pass:${SIGN_STOREPASS} -name ${SIGN_ALIAS}
 //  signtool sign /v /f ${SIGN_KEYSTORE} /p ${SIGN_STOREPASS} /t http://timestamp.verisign.com/scripts/timestamp.dll /d "Jenkins-${env.JENKINS_VERSION}" Jenkins-${env.JENKINS_VERSION}.msi"""
@@ -49,7 +48,8 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
       steps {
         unstash 'MSI'
         script {
-          MSI_SHA256 = powershell(returnStdout: true, script: "(Get-FileHash -Algorithm SHA256 -Path jenkins*${env.JENKINS_VERSION}.msi).Hash.ToLower()").trim()
+          
+          MSI_SHA256 = powershell(returnStdout: true, script: "(Get-FileHash -Algorithm SHA256 -Path bin/Release/en-US/jenkins*${env.JENKINS_VERSION}.msi).Hash.ToLower()").trim()
         }
       }
     }
@@ -59,9 +59,7 @@ copy bin\\Release\\jenkins-${env.JENKINS_VERSION}.msi ..\\"""
       steps {
         script {
           dir('chocolatey') {
-            bat """
-powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} ${MSI_SHA256}
-copy bin\\jenkins*.${env.JENKINS_VERSION}.nupkg ..\\"""
+            bat "powershell -f mkrelease.ps1 ${env.JENKINS_VERSION} ${MSI_SHA256}"
           }
         }
         stash name: 'Chocolatey', includes: "jenkins*.${env.JENKINS_VERSION}.nupkg"
@@ -74,7 +72,7 @@ copy bin\\jenkins*.${env.JENKINS_VERSION}.nupkg ..\\"""
         unstash name: 'MSI'
         unstash name: 'Chocolatey'
         
-        archiveArtifacts artifacts: "jenkins-${env.JENKINS_VERSION}.msi, jenkins*.${env.JENKINS_VERSION}.nupkg"
+        archiveArtifacts artifacts: "**/jenkins-${env.JENKINS_VERSION}.msi, **/jenkins*.${env.JENKINS_VERSION}.nupkg"
       }
     }
   }
