@@ -193,7 +193,6 @@
       <Dialog Id="JavaBrowseDlg" Width="370" Height="270" Title="[ProductName] Setup">
         <Control Id="PathEdit" Type="PathEdit" X="25" Y="202" Width="320" Height="18" Property="_BrowseProperty" Indirect="yes" />
         <Control Id="OK" Type="PushButton" X="240" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUIOK)">
-            <Publish Property="JAVA_HOME" Value="_BrowseProperty">1</Publish>
             <Publish Event="EndDialog" Value="Return">1</Publish>
         </Control>
         <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
@@ -271,6 +270,9 @@
     <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
 
     <Property Id="WIXUI_INSTALLDIR" Value="JENKINSDIR" />
+    
+    <!-- Set JAVA_HOME to the Program Files directory if it is empty so the JavaHomeDlg doesn't have an issue -->
+    <SetProperty Id="JAVA_HOME" Before="CostFinalize" Value="[ProgramFiles64Folder]"><![CDATA[JAVA_HOME = ""]]></SetProperty>
   </Product>
 </Wix>
 
